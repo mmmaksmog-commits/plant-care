@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Мои растения — график полива</title>
+  <meta name="description" content="Трекер полива комнатных растений: своё расписание для каждого, растения грустят, если про них забыть.">
+  <meta name="theme-color" content="#f3f6ee">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪴</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #f3f6ee; --card: #fff; --ink: #1f2a1a; --muted: #6f7d67; --green: #4d7c3a; --leaf: #8bbf63; --water: #38bdf8; --pot: #c56b47; --line: #e3e9db; color-scheme: light; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 Nunito, system-ui, sans-serif; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .app { max-width: 720px; margin: 0 auto; padding: calc(22px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom)); }
+    .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    h1 { margin: 0; font-size: clamp(30px, 7vw, 40px); font-weight: 900; letter-spacing: -0.02em; }
+    .add { padding: 12px 18px; border: 0; border-radius: 14px; background: var(--green); color: #fff; font-weight: 800; }
+    .today { margin-top: 16px; padding: 18px; border-radius: 24px; background: linear-gradient(135deg, #dff1fb, #e9f7df); }
+    .today b { font-size: 18px; }
+    .today p { margin: 4px 0 0; color: var(--muted); }
+    .today.calm { background: #e9f3df; }
+    .plants { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); margin-top: 18px; }
+    .plant { position: relative; display: grid; justify-items: center; gap: 4px; padding: 20px 16px 16px; border-radius: 26px; background: var(--card); border: 2px solid transparent; transition: border-color 0.2s; }
+    .plant.thirsty { border-color: #fde68a; }
+    .plant.dying { border-color: #fca5a5; background: #fff7f5; }
+    .pot { position: relative; width: 96px; height: 110px; }
+    .pot__leaves { position: absolute; left: 50%; bottom: 44px; font-size: 64px; line-height: 1; transform-origin: 50% 100%; transform: translateX(-50%); transition: transform 0.5s, filter 0.5s; }
+    .thirsty .pot__leaves { transform: translateX(-50%) rotate(-10deg); filter: saturate(0.6); }
+    .dying .pot__leaves { transform: translateX(-50%) rotate(-24deg) scale(0.92); filter: saturate(0.2) brightness(0.95); }
+    .happy .pot__leaves { animation: sway 3s ease-in-out infinite; }
+    @keyframes sway { 50% { transform: translateX(-50%) rotate(4deg); } }
+    .pot__base { position: absolute; left: 50%; bottom: 0; width: 76px; height: 50px; transform: translateX(-50%); border-radius: 6px 6px 22px 22px; background: linear-gradient(180deg, #d77b56, var(--pot)); }
+    .pot__base::before { content: ''; position: absolute; left: -6px; right: -6px; top: -8px; height: 14px; border-radius: 6px; background: #b85d3b; }
+    .pot__face { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 18px; }
+    .drop { position: absolute; left: 50%; top: 0; font-size: 22px; opacity: 0; }
+    .plant.watering .drop { animation: drop 0.8s ease-in; }
+    @keyframes drop { 0% { opacity: 1; transform: translate(-50%, -20px); } 100% { opacity: 0; transform: translate(-50%, 50px); } }
+    .plant h3 { margin: 6px 0 0; font-size: 19px; font-weight: 900; }
+    .plant small { color: var(--muted); }
+    .status { margin: 6px 0; padding: 4px 12px; border-radius: 999px; background: #eef5e7; color: var(--green); font-weight: 800; font-size: 14px; }
+    .thirsty .status { background: #fef3c7; color: #a16207; }
+    .dying .status { background: #fee2e2; color: #b91c1c; }
+    .water-meter { width: 100%; height: 8px; border-radius: 4px; background: #eef2ea; overflow: hidden; }
+    .water-meter i { display: block; height: 100%; border-radius: 4px; background: var(--water); transition: width 0.5s; }
+    .btns { display: grid; grid-template-columns: 1fr auto; gap: 6px; width: 100%; margin-top: 10px; }
+    .water { padding: 11px; border: 0; border-radius: 14px; background: var(--water); color: #fff; font-weight: 800; }
+    .more { width: 44px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); font-size: 18px; }
+    .history { margin-top: 26px; padding: 18px; border-radius: 24px; background: var(--card); }
+    .history h2 { margin: 0 0 10px; font-size: 18px; }
+    .days { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 3px; }
+    .days div { display: grid; justify-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
+    .days i { width: 100%; aspect-ratio: 1; border-radius: 6px; background: #eef2ea; display: grid; place-items: center; font-style: normal; font-size: 12px; }
+    .days i.w { background: #e0f2fe; }
+    .sheet { position: fixed; inset: 0; z-index: 10; display: grid; place-items: end center; background: rgba(0, 0, 0, 0.35); }
+    @media (min-width: 640px) { .sheet { place-items: center; } }
+    .sheet form { display: grid; gap: 12px; width: min(480px, 100%); padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); border-radius: 26px 26px 0 0; background: var(--card); }
+    @media (min-width: 640px) { .sheet form { border-radius: 26px; } }
+    .sheet h3 { margin: 0; font-size: 21px; font-weight: 900; }
+    .species { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .sp { padding: 10px 2px; border: 2px solid var(--line); border-radius: 14px; background: var(--bg); font-size: 12px; font-weight: 700; }
+    .sp span { display: block; font-size: 26px; }
+    .sp.on { border-color: var(--green); background: #eef5e7; }
+    .field { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+    .field input { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); font-size: 16px; color: var(--ink); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn { padding: 12px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); font-weight: 800; }
+    .btn--green { border: 0; background: var(--green); color: #fff; }
+    .btn--red { margin-right: auto; color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="top"><h1>Мои растения 🪴</h1><button class="add" id="addBtn">＋ Растение</button></div>
+    <div class="today" id="today"></div>
+    <div class="plants" id="plants"></div>
+    <section class="history"><h2>Поливы за 2 недели</h2><div class="days" id="days"></div></section>
+  </main>
+
+  <div class="sheet" id="sheet" hidden>
+    <form id="form">
+      <h3 id="formTitle">Новое растение</h3>
+      <div class="species" id="species"></div>
+      <div class="row">
+        <label class="field">Имя<input id="name" required maxlength="20" placeholder="Например, Боря"></label>
+        <label class="field">Поливать раз в, дней<input id="interval" type="number" min="1" max="60" required></label>
+      </div>
+      <label class="field">Последний полив<input id="last" type="date" required></label>
+      <div class="actions"><button type="button" class="btn btn--red" id="delBtn" hidden>Удалить</button><button type="button" class="btn" id="cancel">Отмена</button><button class="btn btn--green" type="submit">Сохранить</button></div>
+    </form>
+  </div>
+
+  <script>
+    const SPECIES = [['🌿', 'Монстера', 7], ['🌵', 'Кактус', 21], ['🌳', 'Фикус', 7], ['🌸', 'Орхидея', 10], ['🪴', 'Сансевиерия', 14], ['🍀', 'Папоротник', 3], ['🌱', 'Суккулент', 14], ['🌺', 'Гибискус', 4]];
+    const DAY = 864e5;
+    const $ = (id) => document.getElementById(id);
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+    const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+    const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 10 || h >= 20) ? b : c; };
+    const store = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('plants_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('plants_' + k, JSON.stringify(v)); } catch {} } };
+    const ago = (n) => iso(new Date(Date.now() - n * DAY));
+    let plants = store.get('list', null) ?? [
+      { id: 1, e: '🌿', species: 'Монстера', name: 'Моня', interval: 7, waterings: [ago(13), ago(6)] },
+      { id: 2, e: '🌵', species: 'Кактус', name: 'Колючка', interval: 21, waterings: [ago(9)] },
+      { id: 3, e: '🍀', species: 'Папоротник', name: 'Фёдор', interval: 3, waterings: [ago(11), ago(8), ago(4)] },
+      { id: 4, e: '🌸', species: 'Орхидея', name: 'Лиля', interval: 10, waterings: [ago(10)] },
+    ];
+    let editId = null, pickSp = 0;
+    const save = () => store.set('list', plants);
+
+    function state(p) {
+      const last = parse(p.waterings[p.waterings.length - 1]);
+      const days = Math.round((today0() - last) / DAY);
+      const left = p.interval - days;
+      const ratio = Math.max(0, Math.min(1, left / p.interval));
+      const cls = left > 1 ? 'happy' : left >= 0 ? 'thirsty' : left >= -Math.max(2, p.interval * 0.3) ? 'thirsty' : 'dying';
+      const face = left > 1 ? '😊' : left >= 0 ? '🙂' : cls === 'thirsty' ? '😟' : '😵';
+      const text = left > 1 ? `Полить через ${left} ${plural(left, 'день', 'дня', 'дней')}` : left === 1 ? 'Полить завтра' : left === 0 ? 'Полить сегодня!' : `Просрочено на ${-left} ${plural(-left, 'день', 'дня', 'дней')}`;
+      return { left, ratio, cls, face, text };
+    }
+
+    function render() {
+      const need = plants.filter((p) => state(p).left <= 0);
+      $('today').className = 'today' + (need.length ? '' : ' calm');
+      $('today').innerHTML = need.length
+        ? `<b>💧 Сегодня нужно полить: ${need.map((p) => p.name).join(', ')}</b><p>Нажмите «Полить» на карточке — растение скажет спасибо.</p>`
+        : `<b>✨ Все растения довольны</b><p>Ближайший полив: ${plants.length ? plants.map((p) => [p, state(p).left]).sort((a, b) => a[1] - b[1])[0][0].name : '—'}.</p>`;
+      const sorted = [...plants].sort((a, b) => state(a).left - state(b).left);
+      $('plants').innerHTML = sorted.map((p) => {
+        const s = state(p);
+        return `<article class="plant ${s.cls}" data-id="${p.id}">
+          <div class="pot"><span class="drop">💧</span><span class="pot__leaves">${p.e}</span><div class="pot__base"></div><span class="pot__face">${s.face}</span></div>
+          <h3>${p.name.replace(/</g, '&lt;')}</h3><small>${p.species} · раз в ${p.interval} ${plural(p.interval, 'день', 'дня', 'дней')}</small>
+          <span class="status">${s.text}</span>
+          <div class="water-meter" title="Влажность почвы"><i style="width:${s.ratio * 100}%"></i></div>
+          <div class="btns"><button class="water" data-water="${p.id}">💧 Полить</button><button class="more" data-edit="${p.id}" aria-label="Настройки">⋯</button></div>
+        </article>`;
+      }).join('') || '<p style="color:var(--muted)">Добавьте первое растение</p>';
+      // История поливов
+      const t = today0();
+      $('days').innerHTML = Array.from({ length: 14 }, (_, i) => {
+        const d = new Date(t - (13 - i) * DAY);
+        const who = plants.filter((p) => p.waterings.includes(iso(d)));
+        return `<div><i class="${who.length ? 'w' : ''}" title="${who.map((p) => p.name).join(', ')}">${who.length ? (who.length > 1 ? who.length : who[0].e) : ''}</i>${d.getDate()}</div>`;
+      }).join('');
+    }
+
+    function water(id) {
+      const p = plants.find((x) => x.id === id);
+      const t = iso(new Date());
+      if (!p.waterings.includes(t)) p.waterings.push(t);
+      p.waterings = p.waterings.slice(-60);
+      save();
+      const card = document.querySelector(`.plant[data-id="${id}"]`);
+      card?.classList.add('watering');
+      setTimeout(render, 700);
+    }
+
+    function openForm(p = null) {
+      editId = p?.id ?? null;
+      pickSp = p ? Math.max(0, SPECIES.findIndex((s) => s[1] === p.species)) : 0;
+      $('formTitle').textContent = p ? 'Настройки растения' : 'Новое растение';
+      $('name').value = p?.name ?? '';
+      $('interval').value = p?.interval ?? SPECIES[pickSp][2];
+      $('last').value = p ? p.waterings[p.waterings.length - 1] : iso(new Date());
+      $('delBtn').hidden = !p;
+      renderSpecies();
+      $('sheet').hidden = false;
+    }
+    function renderSpecies() { $('species').innerHTML = SPECIES.map(([e, n], i) => `<button type="button" class="sp ${i === pickSp ? 'on' : ''}" data-sp="${i}"><span>${e}</span>${n}</button>`).join(''); }
+    $('species').addEventListener('click', (e) => { const b = e.target.closest('[data-sp]'); if (b) { pickSp = +b.dataset.sp; $('interval').value = SPECIES[pickSp][2]; renderSpecies(); } });
+    $('form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const [emoji, species] = SPECIES[pickSp];
+      const data = { e: emoji, species, name: $('name').value.trim(), interval: +$('interval').value };
+      if (editId) { const p = plants.find((x) => x.id === editId); Object.assign(p, data); p.waterings[p.waterings.length - 1] = $('last').value; }
+      else plants.push({ id: Date.now(), ...data, waterings: [$('last').value] });
+      save(); $('sheet').hidden = true; render();
+    });
+    $('delBtn').onclick = () => { if (confirm('Удалить растение?')) { plants = plants.filter((x) => x.id !== editId); save(); $('sheet').hidden = true; render(); } };
+    $('cancel').onclick = () => { $('sheet').hidden = true; };
+    $('addBtn').onclick = () => openForm();
+    $('plants').addEventListener('click', (e) => {
+      const w = e.target.closest('[data-water]'); const m = e.target.closest('[data-edit]');
+      if (w) water(+w.dataset.water);
+      if (m) openForm(plants.find((x) => x.id === +m.dataset.edit));
+    });
+    render();
+  </script>
+</body>
+</html>
